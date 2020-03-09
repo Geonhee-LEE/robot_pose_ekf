@@ -67,7 +67,7 @@ install(
 )
 
 install(
-    FILES robot_pose_ekf.launch example_with_gps.launch
+    FILES launch/robot_pose_ekf.launch launch/example_with_gps.launch
     DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
 

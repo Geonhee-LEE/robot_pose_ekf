@@ -102,6 +102,9 @@ private:
 
   /// get the status of the filter
   bool getStatus(robot_pose_ekf::GetStatus::Request& req, robot_pose_ekf::GetStatus::Response& resp);
+  
+  /// Lookup Twist
+  void lookupTwist(const std::string& tracking_frame, const std::string& observation_frame, const std::string& reference_frame, const tf::Point & reference_point, const std::string& reference_point_frame, const ros::Time& time, const ros::Duration& averaging_interval, geometry_msgs::Twist& twist);
 
   ros::NodeHandle node_;
   ros::Timer timer_;

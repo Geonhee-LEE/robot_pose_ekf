@@ -35,7 +35,8 @@
 /* Author: Wim Meeussen */
 
 #include <robot_pose_ekf/odom_estimation_node.h>
-
+#include <geometry_msgs/Pose.h>
+#include <geometry_msgs/Twist.h>
 
 using namespace MatrixWrapper;
 using namespace std;
@@ -181,13 +182,14 @@ namespace estimation
     odom_stamp_ = odom->header.stamp;
     odom_time_  = Time::now();
     Quaternion q;
-    tf::quaternionMsgToTF(odom->pose.pose.orientation, q);
-    odom_meas_  = Transform(q, Vector3(odom->pose.pose.position.x, odom->pose.pose.position.y, 0));
+    tf::quaternionMsgToTF(odom->pose.pose.orientation, q);	//convert Quaternion msg to Quaternion 
+    odom_meas_  = Transform(q, Vector3(odom->pose.pose.position.x, odom->pose.pose.position.y, 0));  // Constructor from Quaternion (optional Vector3 ) 
     for (unsigned int i=0; i<6; i++)
       for (unsigned int j=0; j<6; j++)
         odom_covariance_(i+1, j+1) = odom->pose.covariance[6*i+j];
 
-    my_filter_.addMeasurement(StampedTransform(odom_meas_.inverse(), odom_stamp_, base_footprint_frame_, "wheelodom"), odom_covariance_);
+    //StampedTransform (const tf::Transform &input, const ros::Time &timestamp, const std::string &frame_id, const std::string &child_frame_id)
+    my_filter_.addMeasurement(StampedTransform(odom_meas_.inverse(), odom_stamp_, base_footprint_frame_, "odom_meas"), odom_covariance_);
     
     // activate odom
     if (!odom_active_) {
@@ -226,8 +228,9 @@ namespace estimation
     // receive data 
     imu_stamp_ = imu->header.stamp;
     tf::Quaternion orientation;
-    quaternionMsgToTF(imu->orientation, orientation);
-    imu_meas_ = tf::Transform(orientation, tf::Vector3(0,0,0));
+    
+    quaternionMsgToTF(imu->orientation, orientation);//convert Quaternion msg to Quaternion 
+    imu_meas_ = tf::Transform(orientation, tf::Vector3(0,0,0)); //Constructor from Quaternion(optional Vector3)  param: const Quaternion&  q, const Vector3&  c=Vector3(tfScalar(0),tfScalar(0),tfScalar(0)) 
     for (unsigned int i=0; i<3; i++)
       for (unsigned int j=0; j<3; j++)
         imu_covariance_(i+1, j+1) = imu->orientation_covariance[3*i+j];
@@ -250,15 +253,15 @@ namespace estimation
     imu_time_  = Time::now();
 
     // manually set covariance untile imu sends covariance
-    if (imu_covariance_(1,1) == 0.0){
+
       SymmetricMatrix measNoiseImu_Cov(3);  measNoiseImu_Cov = 0;
       measNoiseImu_Cov(1,1) = pow(0.00017,2);  // = 0.01 degrees / sec
       measNoiseImu_Cov(2,2) = pow(0.00017,2);  // = 0.01 degrees / sec
       measNoiseImu_Cov(3,3) = pow(0.00017,2);  // = 0.01 degrees / sec
       imu_covariance_ = measNoiseImu_Cov;
-    }
+    
 
-    my_filter_.addMeasurement(StampedTransform(imu_meas_.inverse(), imu_stamp_, base_footprint_frame_, "imu"), imu_covariance_);
+    my_filter_.addMeasurement(StampedTransform(imu_meas_.inverse(), imu_stamp_, base_footprint_frame_, "imu_meas"), imu_covariance_);
     
     // activate imu
     if (!imu_active_) {
@@ -296,12 +299,34 @@ namespace estimation
 
     // get data
     vo_stamp_ = vo->header.stamp;
-    vo_time_  = Time::now();
-    poseMsgToTF(vo->pose.pose, vo_meas_);
+    poseMsgToTF(vo->pose.pose, vo_meas_);	//convert Pose msg to TF, tf::Transform vo_meas_ 
+
+
     for (unsigned int i=0; i<6; i++)
       for (unsigned int j=0; j<6; j++)
         vo_covariance_(i+1, j+1) = vo->pose.covariance[6*i+j];
-    my_filter_.addMeasurement(StampedTransform(vo_meas_.inverse(), vo_stamp_, base_footprint_frame_, "vo"), vo_covariance_);
+
+    
+    // Transforms VO data to base_footprint frame
+    if (!robot_state_.waitForTransform(base_footprint_frame_, vo->child_frame_id, vo_stamp_, ros::Duration(0.5))){
+     // warn when VO was already activated, not when VO is not active yet
+	if (vo_active_)
+          ROS_ERROR("Could not transform VO message from %s to %s", vo->child_frame_id.c_str(), base_footprint_frame_.c_str());
+        else if (my_filter_.isInitialized())
+          ROS_WARN("Could not transform VO message from %s to %s. VO will not be activated yet.", vo->child_frame_id.c_str(), base_footprint_frame_.c_str());
+        else 
+          ROS_DEBUG("Could not transform VO message from %s to %s. VO will not be activated yet.", vo->child_frame_id.c_str(), base_footprint_frame_.c_str());
+        return;
+    }
+
+  
+    StampedTransform base_vo_offset; 
+    robot_state_.lookupTransform( vo->child_frame_id,base_footprint_frame_, vo_stamp_, base_vo_offset);
+    vo_meas_ = vo_meas_ * base_vo_offset ;
+    vo_time_  = Time::now();
+
+
+    my_filter_.addMeasurement(StampedTransform(vo_meas_.inverse(), vo_stamp_, base_footprint_frame_, "vo_meas"), vo_covariance_);
     
     // activate vo
     if (!vo_active_) {
@@ -326,8 +351,99 @@ namespace estimation
       vo_file_ <<fixed<<setprecision(5)<<ros::Time::now().toSec()<<" "<< vo_meas_.getOrigin().x() << " " << vo_meas_.getOrigin().y() << " " << vo_meas_.getOrigin().z() << " "
                << Rx << " " << Ry << " " << Rz << endl;
     }
+
+
+    // Transforms VO data wrt base_footprint frame
+    tf::Transform transformed_odom;
+    geometry_msgs::Pose pose_wrt_base = vo->pose.pose;
+    geometry_msgs::Twist twist_wrt_base = vo->twist.twist;
+
+    tf::poseMsgToTF(pose_wrt_base, transformed_odom);
+    //quaternionMsgToTF(imu->orientation, orientation);//convert Quaternion msg to Quaternion 
+    //transformed_odom  = Transform(q, Vector3(odom->pose.pose.position.x, odom->pose.pose.position.y, 0));  // Constructor from Quaternion (optional Vector3 ) 
+
+    
+    tf::StampedTransform vo_wrt_base_offset; 
+    robot_state_.lookupTransform(vo->child_frame_id, base_footprint_frame_, vo_stamp_, vo_wrt_base_offset);
+    transformed_odom = transformed_odom * vo_wrt_base_offset;
+
+    geometry_msgs::Transform transformed_pose;
+    tf::transformTFToMsg(transformed_odom, transformed_pose);
+    //ROS_INFO_STREAM("Transform: " << transformed_pose);
+
+    // Twist VO data wrt base_footprint frame
+    robot_state_.lookupTwist(vo->child_frame_id, base_footprint_frame_, ros::Time(0), ros::Duration(0.1), twist_wrt_base);
+    ROS_INFO_STREAM("Twist: " << twist_wrt_base);
+    
+    
   };
 
+	/* void Transformer::lookupTwist(const std::string& tracking_frame, const std::string& observation_frame, const ros::Time& time, const ros::Duration& averaging_interval, geometry_msgs::Twist& twist) const
+	{ 
+	// ref point is origin of tracking_frame, ref_frame = obs_frame
+	lookupTwist(tracking_frame, observation_frame, observation_frame, tf::Point(0,0,0), tracking_frame, time, averaging_interval, twist);
+	}
+	*/
+
+	/* void Transformer::lookupTwist(const std::string& tracking_frame, const std::string& observation_frame, const std::string& reference_frame,
+		            const tf::Point & reference_point, const std::string& reference_point_frame, 
+		            const ros::Time& time, const ros::Duration& averaging_interval, geometry_msgs::Twist& twist) const
+	   {
+	     ros::Time latest_time, target_time;
+	     getLatestCommonTime(observation_frame, tracking_frame, latest_time, NULL); 
+	   
+	     if (ros::Time() == time)
+	       target_time = latest_time;
+	     else
+	       target_time = time;
+	   
+	     ros::Time end_time = std::min(target_time + averaging_interval *0.5 , latest_time);
+
+	     ros::Time start_time = std::max(ros::Time().fromSec(.00001) + averaging_interval, end_time) - averaging_interval;  // don't collide with zero
+	     ros::Duration corrected_averaging_interval = end_time - start_time; //correct for the possiblity that start time was truncated above.
+	     StampedTransform start, end;
+	     lookupTransform(observation_frame, tracking_frame, start_time, start);
+	     lookupTransform(observation_frame, tracking_frame, end_time, end); 
+	   
+	     tf::Matrix3x3 temp = start.getBasis().inverse() * end.getBasis();
+	     tf::Quaternion quat_temp;
+	     temp.getRotation(quat_temp);
+	     tf::Vector3 o = start.getBasis() * quat_temp.getAxis();
+	     tfScalar ang = quat_temp.getAngle();
+	     
+	     double delta_x = end.getOrigin().getX() - start.getOrigin().getX();
+	     double delta_y = end.getOrigin().getY() - start.getOrigin().getY();
+	     double delta_z = end.getOrigin().getZ() - start.getOrigin().getZ();	   
+	   
+	     tf::Vector3 twist_vel ((delta_x)/corrected_averaging_interval.toSec(), (delta_y)/corrected_averaging_interval.toSec(), (delta_z)/corrected_averaging_interval.toSec());
+	     tf::Vector3 twist_rot = o * (ang / corrected_averaging_interval.toSec());
+	   	   
+	     // This is a twist w/ reference frame in observation_frame  and reference point is in the tracking_frame at the origin (at start_time)	   
+	     //correct for the position of the reference frame
+	     tf::StampedTransform inverse;
+	     lookupTransform(reference_frame,tracking_frame,  target_time, inverse);
+	     tf::Vector3 out_rot = inverse.getBasis() * twist_rot;
+	     tf::Vector3 out_vel = inverse.getBasis()* twist_vel + inverse.getOrigin().cross(out_rot);
+	   	   
+	     //Rereference the twist about a new reference point
+	     // Start by computing the original reference point in the reference frame:
+	     tf::Stamped<tf::Point> rp_orig(tf::Point(0,0,0), target_time, tracking_frame);
+	     transformPoint(reference_frame, rp_orig, rp_orig);
+	     // convert the requrested reference point into the right frame
+	     tf::Stamped<tf::Point> rp_desired(reference_point, target_time, reference_point_frame);
+	     transformPoint(reference_frame, rp_desired, rp_desired);
+	     // compute the delta
+	     tf::Point delta = rp_desired - rp_orig;
+	     // Correct for the change in reference point 
+	     out_vel = out_vel + out_rot * delta;
+	     // out_rot unchanged   
+	     twist.linear.x =  out_vel.x();
+	     twist.linear.y =  out_vel.y();
+	     twist.linear.z =  out_vel.z();
+	     twist.angular.x =  out_rot.x();
+	     twist.angular.y =  out_rot.y();
+	     twist.angular.z =  out_rot.z();
+	};*/
 
   void OdomEstimationNode::gpsCallback(const GpsConstPtr& gps)
   {
@@ -342,7 +458,7 @@ namespace estimation
     for (unsigned int i=0; i<3; i++)
       for (unsigned int j=0; j<3; j++)
         gps_covariance_(i+1, j+1) = gps->pose.covariance[6*i+j];
-    my_filter_.addMeasurement(StampedTransform(gps_meas_.inverse(), gps_stamp_, base_footprint_frame_, "gps"), gps_covariance_);
+    my_filter_.addMeasurement(StampedTransform(gps_meas_.inverse(), gps_stamp_, base_footprint_frame_, "gps_meas"), gps_covariance_);
     
     // activate gps
     if (!gps_active_) {

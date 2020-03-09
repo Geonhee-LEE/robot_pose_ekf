@@ -54,8 +54,8 @@ namespace estimation
     imu_initialized_(false),
     vo_initialized_(false),
     gps_initialized_(false),
-    output_frame_(std::string("odom_combined")),
-    base_footprint_frame_(std::string("base_footprint"))
+    output_frame_(std::string("R_005/odom_combined")),
+    base_footprint_frame_(std::string("R_005/base_footprint"))
   {
     // create SYSTEM MODEL
     ColumnVector sysNoise_Mu(6);  sysNoise_Mu = 0;
@@ -185,11 +185,11 @@ namespace estimation
     // ------------------------
     ROS_DEBUG("Process odom meas");
     if (odom_active){
-      if (!transformer_.canTransform(base_footprint_frame_,"wheelodom", filter_time)){
+      if (!transformer_.canTransform(base_footprint_frame_,"odom_meas", filter_time)){
         ROS_ERROR("filter time older than odom message buffer");
         return false;
       }
-      transformer_.lookupTransform("wheelodom", base_footprint_frame_, filter_time, odom_meas_);
+      transformer_.lookupTransform("odom_meas", base_footprint_frame_, filter_time, odom_meas_);
       if (odom_initialized_){
 	// convert absolute odom measurements to relative odom measurements in horizontal plane
 	Transform odom_rel_frame =  Transform(tf::createQuaternionFromYaw(filter_estimate_old_vec_(6)), 
@@ -218,11 +218,11 @@ namespace estimation
     // process imu measurement
     // -----------------------
     if (imu_active){
-      if (!transformer_.canTransform(base_footprint_frame_,"imu", filter_time)){
+      if (!transformer_.canTransform(base_footprint_frame_,"imu_meas", filter_time)){
         ROS_ERROR("filter time older than imu message buffer");
         return false;
       }
-      transformer_.lookupTransform("imu", base_footprint_frame_, filter_time, imu_meas_);
+      transformer_.lookupTransform("imu_meas", base_footprint_frame_, filter_time, imu_meas_);
       if (imu_initialized_){
 	// convert absolute imu yaw measurement to relative imu yaw measurement 
 	Transform imu_rel_frame =  filter_estimate_old_ * imu_meas_old_.inverse() * imu_meas_;
@@ -249,11 +249,11 @@ namespace estimation
     // process vo measurement
     // ----------------------
     if (vo_active){
-      if (!transformer_.canTransform(base_footprint_frame_,"vo", filter_time)){
+      if (!transformer_.canTransform(base_footprint_frame_,"vo_meas", filter_time)){
         ROS_ERROR("filter time older than vo message buffer");
         return false;
       }
-      transformer_.lookupTransform("vo", base_footprint_frame_, filter_time, vo_meas_);
+      transformer_.lookupTransform("vo_meas", base_footprint_frame_, filter_time, vo_meas_);
       if (vo_initialized_){
 	// convert absolute vo measurements to relative vo measurements
 	Transform vo_rel_frame =  filter_estimate_old_ * vo_meas_old_.inverse() * vo_meas_;
@@ -275,11 +275,11 @@ namespace estimation
     // process gps measurement
     // ----------------------
     if (gps_active){
-      if (!transformer_.canTransform(base_footprint_frame_,"gps", filter_time)){
+      if (!transformer_.canTransform(base_footprint_frame_,"gps_meas", filter_time)){
         ROS_ERROR("filter time older than gps message buffer");
         return false;
       }
-      transformer_.lookupTransform("gps", base_footprint_frame_, filter_time, gps_meas_);
+      transformer_.lookupTransform("gps_meas", base_footprint_frame_, filter_time, gps_meas_);
       if (gps_initialized_){
         gps_meas_pdf_->AdditiveNoiseSigmaSet(gps_covariance_ * pow(dt,2));
         ColumnVector gps_vec(3);
@@ -340,10 +340,10 @@ namespace estimation
     }
     // add measurements
     addMeasurement(meas);
-    if (meas.child_frame_id_ == "wheelodom") odom_covariance_ = covar;
-    else if (meas.child_frame_id_ == "imu")  imu_covariance_  = covar;
-    else if (meas.child_frame_id_ == "vo")   vo_covariance_   = covar;
-    else if (meas.child_frame_id_ == "gps")  gps_covariance_  = covar;
+    if (meas.child_frame_id_ == "odom_meas") odom_covariance_ = covar;
+    else if (meas.child_frame_id_ == "imu_meas")  imu_covariance_  = covar;
+    else if (meas.child_frame_id_ == "vo_meas")   vo_covariance_   = covar;
+    else if (meas.child_frame_id_ == "gps_meas")  gps_covariance_  = covar;
     else ROS_ERROR("Adding a measurement for an unknown sensor %s", meas.child_frame_id_.c_str());
   };
 
@@ -390,7 +390,7 @@ namespace estimation
 
     // header
     estimate.header.stamp = tmp.stamp_;
-    estimate.header.frame_id = "odom";
+    estimate.header.frame_id = "R_005/odom_combined";
 
     // covariance
     SymmetricMatrix covar =  filter_->PostGet()->CovarianceGet();
