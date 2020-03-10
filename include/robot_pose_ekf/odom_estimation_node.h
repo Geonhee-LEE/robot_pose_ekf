@@ -32,6 +32,7 @@
 *********************************************************************/
 
 /* Author: Wim Meeussen */
+/* Modified by Geonhee */
 
 #ifndef __ODOM_ESTIMATION_NODE__
 #define __ODOM_ESTIMATION_NODE__
@@ -46,6 +47,7 @@
 
 // messages
 #include "nav_msgs/Odometry.h"
+#include "geometry_msgs/Pose.h"
 #include "geometry_msgs/Twist.h"
 #include "sensor_msgs/Imu.h"
 #include "geometry_msgs/PoseStamped.h"

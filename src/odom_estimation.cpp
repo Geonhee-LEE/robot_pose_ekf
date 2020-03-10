@@ -33,6 +33,7 @@
 *********************************************************************/
 
 /* Author: Wim Meeussen */
+/* Modified by Geonhee */
 
 #include <robot_pose_ekf/odom_estimation.h>
 
@@ -54,8 +55,8 @@ namespace estimation
     imu_initialized_(false),
     vo_initialized_(false),
     gps_initialized_(false),
-    output_frame_(std::string("R_005/odom_combined")),
-    base_footprint_frame_(std::string("R_005/base_footprint"))
+    output_frame_(std::string("output_frame")),
+    base_footprint_frame_(std::string("base_footprint_frame"))
   {
     // create SYSTEM MODEL
     ColumnVector sysNoise_Mu(6);  sysNoise_Mu = 0;
@@ -390,7 +391,7 @@ namespace estimation
 
     // header
     estimate.header.stamp = tmp.stamp_;
-    estimate.header.frame_id = "R_005/odom_combined";
+    estimate.header.frame_id = output_frame_;
 
     // covariance
     SymmetricMatrix covar =  filter_->PostGet()->CovarianceGet();

@@ -32,6 +32,8 @@
 *********************************************************************/
 
 /* Author: Wim Meeussen */
+/* Modified by Geonhee */
+
 
 #ifndef __ODOM_ESTIMATION__
 #define __ODOM_ESTIMATION__

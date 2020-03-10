@@ -1,6 +1,6 @@
 <launch>
 
-	<include file="$(find realsense2_camera)/launch/ekf_t265.launch"/>
+	<include file="$(find realsense2_camera)/launch/ekf_deg45_t265.launch"/>
 
 	<node pkg="robot_pose_ekf" type="robot_pose_ekf" name="robot_pose_ekf">
 	  <param name="output_frame" value="R_005/odom_combined"/>

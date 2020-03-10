@@ -33,10 +33,9 @@
 *********************************************************************/
 
 /* Author: Wim Meeussen */
+/* Modified by Geonhee */
 
 #include <robot_pose_ekf/odom_estimation_node.h>
-#include <geometry_msgs/Pose.h>
-#include <geometry_msgs/Twist.h>
 
 using namespace MatrixWrapper;
 using namespace std;
@@ -75,8 +74,8 @@ namespace estimation
     ros::NodeHandle nh;
 
     // paramters
-    nh_private.param("output_frame", output_frame_, std::string("odom_combined"));
-    nh_private.param("base_footprint_frame", base_footprint_frame_, std::string("base_footprint"));
+    nh_private.param("output_frame", output_frame_, std::string("output_frame"));
+    nh_private.param("base_footprint_frame", base_footprint_frame_, std::string("base_footprint_frame"));
     nh_private.param("sensor_timeout", timeout_, 1.0);
     nh_private.param("odom_used", odom_used_, true);
     nh_private.param("imu_used",  imu_used_, true);
@@ -94,8 +93,7 @@ namespace estimation
     ROS_INFO_STREAM("output frame: " << output_frame_);
     ROS_INFO_STREAM("base frame: " << base_footprint_frame_);
 
-    // set output frame and base frame names in OdomEstimation filter
-    // so that user-defined tf frames are respected
+    // set output frame and base frame names in OdomEstimation filter so that user-defined tf frames are respected
     my_filter_.setOutputFrame(output_frame_);
     my_filter_.setBaseFootprintFrame(base_footprint_frame_);
 
@@ -352,7 +350,7 @@ namespace estimation
                << Rx << " " << Ry << " " << Rz << endl;
     }
 
-
+    /*
     // Transforms VO data wrt base_footprint frame
     tf::Transform transformed_odom;
     geometry_msgs::Pose pose_wrt_base = vo->pose.pose;
@@ -374,6 +372,7 @@ namespace estimation
     // Twist VO data wrt base_footprint frame
     robot_state_.lookupTwist(vo->child_frame_id, base_footprint_frame_, ros::Time(0), ros::Duration(0.1), twist_wrt_base);
     ROS_INFO_STREAM("Twist: " << twist_wrt_base);
+    */
     
     
   };
@@ -586,6 +585,10 @@ namespace estimation
         Transform init_meas_ = Transform(q, p);
         my_filter_.initialize(init_meas_, gps_stamp_);
         ROS_INFO("Kalman filter initialized with gps and visual odometry measurement");
+      }
+      else if ( odom_active_  && vo_active_ && !my_filter_.isInitialized()){
+        my_filter_.initialize(odom_meas_, odom_stamp_);
+        ROS_INFO("Kalman filter initialized with odom measurement and visual odometry measurement");
       }
       else if ( odom_active_  && !gps_used_ && !my_filter_.isInitialized()){
         my_filter_.initialize(odom_meas_, odom_stamp_);
