@@ -3,6 +3,11 @@
 # robot_pose_ekf package
 The [robot_pose_ekf](http://wiki.ros.org/robot_pose_ekf) ROS package applies sensor fusion on the robot IMU and odometry values to estimate its 3D pose.
 
+### Requirement
+```
+sudo apt install ros-melodic-bfl
+```
+
 ### Nodes
 The package contains a single node 
 1. **robot_pose_ekf**: Implements an Extended Kalman Filter, subscribes to robot measurements, and publishes a filtered 3D pose.
