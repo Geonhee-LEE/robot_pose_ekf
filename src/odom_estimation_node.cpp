@@ -295,9 +295,16 @@ namespace estimation
 
     assert(vo_used_);
 
-    // get data
+    // get data & convert 3D into 2D
+    nav_msgs::Odometry vo_2d;
+    vo_2d = *vo;
     vo_stamp_ = vo->header.stamp;
-    poseMsgToTF(vo->pose.pose, vo_meas_);	//convert Pose msg to TF, tf::Transform vo_meas_ 
+    vo_2d.pose.pose.position.z = 0;
+    tf2::Quaternion q;
+    q.setRPY(0, 0, tf2::getYaw(vo->pose.pose.orientation));
+    tf2::convert(q, vo_2d.pose.pose.orientation);
+    
+    poseMsgToTF(vo_2d.pose.pose, vo_meas_);	//convert Pose msg to TF, tf::Transform vo_meas_ 
 
 
     for (unsigned int i=0; i<6; i++)
@@ -351,37 +358,37 @@ namespace estimation
     }
 
     /*
-    // Transforms VO data wrt base_footprint frame
-    tf::Transform transformed_odom;
-    geometry_msgs::Pose pose_wrt_base = vo->pose.pose;
-    geometry_msgs::Twist twist_wrt_base = vo->twist.twist;
+      // Transforms VO data wrt base_footprint frame
+      tf::Transform transformed_odom;
+      geometry_msgs::Pose pose_wrt_base = vo->pose.pose;
+      geometry_msgs::Twist twist_wrt_base = vo->twist.twist;
 
-    tf::poseMsgToTF(pose_wrt_base, transformed_odom);
-    //quaternionMsgToTF(imu->orientation, orientation);//convert Quaternion msg to Quaternion 
-    //transformed_odom  = Transform(q, Vector3(odom->pose.pose.position.x, odom->pose.pose.position.y, 0));  // Constructor from Quaternion (optional Vector3 ) 
+      tf::poseMsgToTF(pose_wrt_base, transformed_odom);
+      //quaternionMsgToTF(imu->orientation, orientation);//convert Quaternion msg to Quaternion 
+      //transformed_odom  = Transform(q, Vector3(odom->pose.pose.position.x, odom->pose.pose.position.y, 0));  // Constructor from Quaternion (optional Vector3 ) 
 
-    
-    tf::StampedTransform vo_wrt_base_offset; 
-    robot_state_.lookupTransform(vo->child_frame_id, base_footprint_frame_, vo_stamp_, vo_wrt_base_offset);
-    transformed_odom = transformed_odom * vo_wrt_base_offset;
+      
+      tf::StampedTransform vo_wrt_base_offset; 
+      robot_state_.lookupTransform(vo->child_frame_id, base_footprint_frame_, vo_stamp_, vo_wrt_base_offset);
+      transformed_odom = transformed_odom * vo_wrt_base_offset;
 
-    geometry_msgs::Transform transformed_pose;
-    tf::transformTFToMsg(transformed_odom, transformed_pose);
-    //ROS_INFO_STREAM("Transform: " << transformed_pose);
+      geometry_msgs::Transform transformed_pose;
+      tf::transformTFToMsg(transformed_odom, transformed_pose);
+      //ROS_INFO_STREAM("Transform: " << transformed_pose);
 
-    // Twist VO data wrt base_footprint frame
-    robot_state_.lookupTwist(vo->child_frame_id, base_footprint_frame_, ros::Time(0), ros::Duration(0.1), twist_wrt_base);
-    ROS_INFO_STREAM("Twist: " << twist_wrt_base);
+      // Twist VO data wrt base_footprint frame
+      robot_state_.lookupTwist(vo->child_frame_id, base_footprint_frame_, ros::Time(0), ros::Duration(0.1), twist_wrt_base);
+      ROS_INFO_STREAM("Twist: " << twist_wrt_base);
     */
     
     
   };
 
 	/* void Transformer::lookupTwist(const std::string& tracking_frame, const std::string& observation_frame, const ros::Time& time, const ros::Duration& averaging_interval, geometry_msgs::Twist& twist) const
-	{ 
-	// ref point is origin of tracking_frame, ref_frame = obs_frame
-	lookupTwist(tracking_frame, observation_frame, observation_frame, tf::Point(0,0,0), tracking_frame, time, averaging_interval, twist);
-	}
+    { 
+    // ref point is origin of tracking_frame, ref_frame = obs_frame
+    lookupTwist(tracking_frame, observation_frame, observation_frame, tf::Point(0,0,0), tracking_frame, time, averaging_interval, twist);
+    }
 	*/
 
 	/* void Transformer::lookupTwist(const std::string& tracking_frame, const std::string& observation_frame, const std::string& reference_frame,
