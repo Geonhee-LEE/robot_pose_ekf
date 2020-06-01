@@ -109,8 +109,8 @@ namespace estimation
 
   // destructor
   OdomEstimation::~OdomEstimation(){
-    if (filter_) delete filter_;
-    if (prior_)  delete prior_;
+    if(filter_) delete filter_;
+    if(prior_)  delete prior_;
     delete odom_meas_model_;
     delete odom_meas_pdf_;
     delete imu_meas_model_;
@@ -191,8 +191,8 @@ namespace estimation
         // update filter
         odom_meas_pdf_->AdditiveNoiseSigmaSet(odom_covariance_ * pow(dt, 2));
 
-        ROS_DEBUG("Update filter with odom measurement %f %f %f %f %f %f", odom_rel(1), odom_rel(2), odom_rel(3), odom_rel(4), odom_rel(5), odom_rel(6));
         filter_->Update(odom_meas_model_, odom_rel);
+        ROS_DEBUG("Update filter with odom measurement %f %f %f %f %f %f", odom_rel(1), odom_rel(2), odom_rel(3), odom_rel(4), odom_rel(5), odom_rel(6));
         diagnostics_odom_rot_rel_ = odom_rel(6);
       }
       else{
