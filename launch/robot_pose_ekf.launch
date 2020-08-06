@@ -12,9 +12,9 @@
 	  <param name="vo_used" value="true"/>
 	  <param name="debug" value="true"/>
 
-	  <remap from="odom" to="$(env ROS_HOSTNAME)/odom" />
+	  <remap from="odom" to="odom" />
 	  <remap from="imu_data" to="$(env ROS_HOSTNAME)/t265/imu" />
-	  <remap from="vo" to="$(env ROS_HOSTNAME)/odom/sample" />
+	  <remap from="vo" to="odom/sample" />
 	  <remap from="odom_combined" to = "$(env ROS_HOSTNAME)/odom_combind" />
 
 	</node>

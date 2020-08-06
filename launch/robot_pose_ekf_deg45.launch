@@ -3,19 +3,19 @@
 	<include file="$(find realsense2_camera)/launch/ekf_deg45_t265.launch"/>
 
 	<node pkg="robot_pose_ekf" type="robot_pose_ekf" name="robot_pose_ekf">
-	  <param name="output_frame" value="R_005/odom_combined"/>
-	  <param name="base_footprint_frame" value="R_005/base_footprint"/>
+	  <param name="output_frame" value="$(env ROS_HOSTNAME)/odom_combined"/>
+	  <param name="base_footprint_frame" value="$(env ROS_HOSTNAME)/base_footprint"/>
 	  <param name="freq" value="30.0"/>
 	  <param name="sensor_timeout" value="1.0"/>  
 	  <param name="odom_used" value="true"/>
 	  <param name="imu_used" value="false"/>
-	  <param name="vo_used" value="true"/>
+	  <param name="vo_used" value="false"/>
 	  <param name="debug" value="true"/>
 
-	  <remap from="odom" to="$(env ROS_HOSTNAME)/odom" />
-	  <remap from="imu_data" to="$(env ROS_HOSTNAME)/t265/imu" />
-	  <remap from="vo" to="$(env ROS_HOSTNAME)/odom/sample" />
-	  <remap from="odom_combined" to = "$(env ROS_HOSTNAME)/odom_combind" />
+	  <remap from="odom" to="odom" />
+	  <remap from="imu_data" to="t265/imu" />
+	  <remap from="vo" to="odom/sample" />
+	  <remap from="odom_combined" to = "odom_combined" />
 
 	</node>
 
